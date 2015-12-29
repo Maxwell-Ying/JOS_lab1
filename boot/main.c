@@ -35,7 +35,7 @@
 static void readsect(void*, uint32_t);
 static void readseg(uint32_t, uint32_t, uint32_t);
 
-static void
+void
 bootmain(void)
 {
 	struct Proghdr *ph, *eph;
