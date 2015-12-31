@@ -24,7 +24,7 @@ struct Command {
 static struct Command commands[] = {
 	{ "help", "Display this list of commands", mon_help },
 	{ "kerninfo", "Display information about the kernel", mon_kerninfo },
-	{ "backtrace", "Display Stack",mon_backtrace},
+	{ "bt", "Display Stack",mon_backtrace},
 };
 #define NCOMMANDS (sizeof(commands)/sizeof(commands[0]))
 
@@ -61,13 +61,34 @@ int
 mon_backtrace(int argc, char **argv, struct Trapframe *tf)
 {
 	// Your code here.
+	uint32_t eip = (uint32_t)read_eip();
+	struct Eipdebuginfo info;
+
 	uint32_t *p_ebp = (uint32_t *)read_ebp();
 	do
 	{
-		cprintf("ebp %08x eip %08x args %08x %08x %08x %08x %08x\n",
-			p_ebp, *(p_ebp+1), *(p_ebp+2), *(p_ebp+3), *(p_ebp+4), *(p_ebp+5)), *(p_ebp+6);
+		int i,j;
+		debuginfo_eip(eip, &info);
+		cprintf("%s:%d:  \n", info.eip_file, info.eip_line);
+		///cprintf("%.*s",info.eip_fn_namelen,info.eip_fn_name);
+		for(i = 0; i < info.eip_fn_namelen; i++)
+			cprintf("%c",info.eip_fn_name[i]);
+		cprintf("+%08x\n", eip - info.eip_fn_addr);
+		for(i = 0; i< info.eip_fn_narg; i++){
+			///cprintf("%.*s",info.eip_fn_args_namelen,info.eip_fn_args_name);
+			for(j = 0;j < info.eip_fn_args_namelen[i];j++)
+				cprintf("%c",info.eip_fn_args_name[i][j]);
+			cprintf(":%08x ",*(p_ebp+2+i));
+		}
+		if(i)
+			cprintf("\n");
+		cprintf("ebp %08x eip %08x args ",p_ebp, *(p_ebp+1));
+		cprintf("\n");
+		cprintf("\n");
+		eip = *(p_ebp + 1);
+		p_ebp = (uint32_t *)*p_ebp;
 	}
-	while((p_ebp = (uint32_t *)*p_ebp) != 0);
+	while(p_ebp);
 	return 0;
 }
 

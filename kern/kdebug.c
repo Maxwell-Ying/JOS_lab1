@@ -170,7 +170,6 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	}
 	// Ignore stuff after the colon.
 	info->eip_fn_namelen = strfind(info->eip_fn_name, ':') - info->eip_fn_name;
-
 	
 	// Search within [lline, rline] for the line number stab.
 	// If found, set info->eip_line to the right line number.
@@ -181,6 +180,14 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	//	Look at the STABS documentation and <inc/stab.h> to find
 	//	which one.
 	// Your code here.
+
+	stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
+
+	if(lline <= rline)
+		info->eip_line = stabs[lline].n_desc;
+	else
+		return -1;
+
 
 	
 	// Search backwards from the line number for the relevant filename
@@ -200,6 +207,20 @@ debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 	// or 0 if there was no containing function.
 	// Your code here.
 
-	
+	/*
+	lfun = lfile;
+	rfun = rfile;
+	stab_binsearch(stabs, &lfun, &rfun, N_PSYM, addr);
+
+	if(lfun <= rfun)
+		info->eip_fn_narg = stabs[lfun].n_value;
+	*/
+	for(lline = lfun + 1; stabs[lline].n_type == N_PSYM; lline++)
+		{
+			info->eip_fn_args_name[lline - lfun - 1] = stabstr + stabs[lline].n_strx;
+			info->eip_fn_args_namelen[lline - lfun - 1] = strfind(info->eip_fn_args_name[lline - lfun - 1],':') 
+			           - info->eip_fn_args_name[lline - lfun - 1];
+		}
+	info->eip_fn_narg = lline - lfun -1;
 	return 0;
 }
