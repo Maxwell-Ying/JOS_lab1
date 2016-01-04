@@ -223,7 +223,7 @@ i386_vm_init(void)
 	// we just set up the amapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here: 
-	boot_map_segment(pgdir, KERNBASE, 0xffffffff - KERNBASE + 1, 0, PTE_W | PTE_P);
+	boot_map_segment(pgdir, KERNBASE,~KERNBASE+1, 0, PTE_W | PTE_P);
 
 	// Check that the initial page directory has been set up correctly.
 	check_boot_pgdir();
@@ -438,17 +438,17 @@ page_init(void)
 	//
 	// Change the code to reflect this.
 	int i;
-	LIST_INIT(&page_free_list);
-	for (i = 0; i < npage; i++) {
+	LIST_INIT(&page_free_list);    //初始化空闲队列；
+	for (i = 0; i < npage; i++) {  //向空闲队列中加入所有页；  step 2
 		pages[i].pp_ref = 0;
 		LIST_INSERT_HEAD(&page_free_list, &pages[i], pp_link);
 	}
 
-	LIST_REMOVE(&pages[0], pp_link);
-	for (i = IOPHYSMEM; i < EXTPHYSMEM; i += PGSIZE)
+	LIST_REMOVE(&pages[0], pp_link);       //删除第一项，因为page0已经使用     step1
+	for (i = IOPHYSMEM; i < EXTPHYSMEM; i += PGSIZE)       //删除【IOPHYSMEM, EXTPHYSMEM)之间的页（IO hole）    step 3
 		LIST_REMOVE(&pages[i/PGSIZE], pp_link);
 
-	for (i = EXTPHYSMEM; i <PADDR((unsigned int)boot_freemem); i += PGSIZE)
+	for (i = EXTPHYSMEM; i <PADDR((unsigned int)boot_freemem); i += PGSIZE)        //删除【EXTPHYSMEM,...）之间的页    step 4
 		LIST_REMOVE(&pages[i/PGSIZE], pp_link);
 
 }
@@ -482,11 +482,11 @@ int
 page_alloc(struct Page **pp_store)
 {
 	// Fill this function in
-	if(LIST_FIRST(&page_free_list) == NULL)
+	if(LIST_FIRST(&page_free_list) == NULL)    //空闲页表首项为空 （无空闲页） 
 		return -E_NO_MEM;
 	else
 	{
-		*pp_store = LIST_FIRST(&page_free_list);
+		*pp_store = LIST_FIRST(&page_free_list);      //取得一个空闲页，然后将其从空闲页表中删除
 		LIST_REMOVE(*pp_store, pp_link);
 		return 0;
 	}
@@ -500,9 +500,9 @@ void
 page_free(struct Page *pp)
 {
 	// Fill this function in
-	if(!pp->pp_ref)
+	if(!pp->pp_ref)            //引用计数为0时，将其加入空闲队列
 		LIST_INSERT_HEAD(&page_free_list, pp, pp_link);
-	else
+	else                       //否则不操作
 		cprintf("ERROR:Try to free a page with non-zero reference, operation canceled");
 }
 
@@ -536,23 +536,17 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	// Fill this function in
 	struct Page * pg;
 	if(pgdir[PDX(va)] & PTE_P)
-	{
-		return PTX(va) + (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)]));
-	}
+		return PTX(va) + (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)]));        //加法为数组的另一种写法。即a【i】==*（a + i）==》&a【i】==a + i
 	else
 	{
-		if(!create)
+		if(!create || page_alloc(&pg))    //由于C语言特性，create == 0时将不会执行page_alloc
 			return NULL;
-		else if(page_alloc(&pg))
-			return NULL;
-		else
-		{
-			pg->pp_ref = 1;
-			memset(KADDR(page2pa(pg)), 0, PGSIZE);
-			pgdir[PDX(va)] = page2pa(pg);
-			pgdir[PDX(va)] = pgdir[PDX(va)] | PTE_U | PTE_W | PTE_P;
-			return PTX(va) + (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)]));
-		}
+                //create模式下：
+                pg->pp_ref = 1;                     //引用计数
+                memset(KADDR(page2pa(pg)), 0, PGSIZE);  
+                pgdir[PDX(va)] = page2pa(pg);       //记录在页表中
+                pgdir[PDX(va)] = pgdir[PDX(va)] | PTE_U | PTE_W | PTE_P;
+                return PTX(va) + (pte_t *)KADDR(PTE_ADDR(pgdir[PDX(va)]));
 	}
 }
 
@@ -581,14 +575,15 @@ page_insert(pde_t *pgdir, struct Page *pp, void *va, int perm)
 	// Fill this function in
 	pte_t *pte;
 	pte = pgdir_walk(pgdir, va, 1);
-	if(!pte)
+	if(!pte)       //由于create为1  可能原因只能为page alloc失败 因此返回E_NO_MEM
 		return -E_NO_MEM;
 	else
 	{
-		pp->pp_ref++;
+		pp->pp_ref++;                         //Details 3
 		if(*pte&PTE_P)
-			page_remove(pgdir, va);
+			page_remove(pgdir, va);      //Details 1
 		*pte = page2pa(pp) | PTE_P | perm;
+                tlb_invalidate(pgdir, va);              //Details 4
 		return 0;
 	}
 	//return 0;
@@ -611,10 +606,10 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 	unsigned int i;
 	pte_t *pg;
 	size = ROUNDUP(size, PGSIZE);
-	for(i = 0; i < size; i += PGSIZE)
-	{
+	for(i = 0; i < size; i += PGSIZE)      //事实上ROUNDUP并不那么需要，但是可能会添加新的代码
+	{                                      //因此还是保留。
 		pg = pgdir_walk(pgdir, (void* )(la + i), 1);
-		assert(pg != NULL);
+		assert(pg != NULL);                           //这个时候的pgdir_walk不应该返回空指针
 		*pg = (pa + i) | perm | PTE_P;
 	}
 	return ;
@@ -663,13 +658,13 @@ page_remove(pde_t *pgdir, void *va)
 {
 	// Fill this function in
 	pte_t* p_pte;
-	struct Page *pg = page_lookup(pgdir, va, &p_pte);
-	if(!pg)
+	struct Page *pg = page_lookup(pgdir, va, &p_pte);  
+	if(!pg)                    //未找到
 		return;
 	else{
 		page_decref(pg);
 	}
-	if(p_pte)
+	if(p_pte)                      //Details 3
 		*p_pte = 0;
 	tlb_invalidate(pgdir, va);
 	return ;
