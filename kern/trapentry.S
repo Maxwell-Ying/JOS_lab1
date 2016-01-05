@@ -41,6 +41,15 @@
  * Lab 3: Your code here for generating entry points for the different traps.
  */
 
+TRAPHANDLER_NOEC(divide_error, T_DIVIDE)
+TRAPHANDLER_NOEC(debug, T_DEBUG)
+TRAPHANDLER_NOEC(nmi, T_NMI)
+TRAPHANDLER_NOEC(break_point, T_BRKPT)
+TRAPHANDLER_NOEC(overflow, T_OFLOW)
+TRAPHANDLER_NOEC(bounds, T_BOUND)
+TRAPHANDLER_NOEC(invalid_op, T_INVOP)
+TRAPHANDLER_NOEC(device_not_available, T_DEVICE)
+TRAPHANDLER_NOEC(double_fault, T_DBLFLT)
 	
 
 /*
