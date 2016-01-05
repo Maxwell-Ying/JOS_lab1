@@ -70,7 +70,7 @@ PERL	:= perl
 # -fno-builtin is required to avoid refs to undefined functions in the kernel.
 # Only optimize to -O1 to discourage inlining, which complicates backtraces.
 CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -O1 -fno-builtin -I$(TOP) -MD 
-CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32 -fno-omit-frame-pointer
+CFLAGS += -Wall -Wno-format -Wno-unused -Werror -gstabs -m32
 
 # Add -fno-stack-protector if the option exists.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
@@ -108,6 +108,8 @@ USER_CFLAGS := $(CFLAGS) -DJOS_USER -gstabs
 # Include Makefrags for subdirectories
 include boot/Makefrag
 include kern/Makefrag
+include lib/Makefrag
+include user/Makefrag
 
 
 IMAGES = $(OBJDIR)/kern/bochs.img
