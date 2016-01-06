@@ -78,6 +78,7 @@ env_init(void)
 		envs[i].env_id = 0;
 		LIST_INSERT_HEAD(&env_free_list, &envs[i], env_link);
 	}
+	cprintf("env init ok\n");
 	return ;
 }
 
@@ -117,6 +118,7 @@ env_setup_vm(struct Env *e)
 	//	env_pgdir's pp_ref!
 
 	// LAB 3: Your code here.
+	//cprintf("env set up vm\n");
 	memset(page2kva(p), 0, PGSIZE);
 	e->env_pgdir = page2kva(p);
 	e->env_cr3 = page2pa(p);
@@ -215,7 +217,7 @@ segment_alloc(struct Env *e, void *va, size_t len)
 		r = page_alloc(&pg);
 		if(r) panic("segment_alloc wrong!\n");
 
-		r = page_insert(e->env_pgdir, pg, va + i * PGSIZE);
+		r = page_insert(e->env_pgdir, pg, va + i * PGSIZE, PTE_U | PTE_W);
 		if(r) panic("segment_alloc wrong!\n");
 	}
 	return ;
@@ -294,6 +296,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 		{
 			segment_alloc(e, (void*)ph->p_va, ph->p_memsz);
 			memset((void*)ph->p_va, 0, ph->p_memsz - ph->p_filesz);
+			//cprintf("segment_alloce success\n");
 
 			memmove((void*)ph->p_va, (void*)((unsigned int )env_elf + ph->p_offset), ph->p_filesz);
 		}
@@ -306,7 +309,7 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 
 	// LAB 3: Your code here.
 	i = page_alloc(&pg);
-	if(i) panic("load icode wrong");
+	if(i) panic("load icode wrong\n");
 	page_insert(e->env_pgdir, pg, (void*)(USTACKTOP - PGSIZE), PTE_U | PTE_W);
 	lcr3(old_cr3);
 }
@@ -326,9 +329,10 @@ env_create(uint8_t *binary, size_t size)
 {
 	// LAB 3: Your code here.
 	struct Env * env;
-	if(env_alloc(&env, 0))
-		panic("env alloc failed !");
+	if(env_alloc(&env, 0) < 0)
+		panic("env alloc failed !\n");
 	load_icode(env, binary, size);
+	//cprintf("env created ok\n");
 	return;
 }
 
@@ -441,6 +445,7 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 	
 	// LAB 3: Your code here.
+	cprintf("env runs\n");
 	curenv = e;
 	curenv->env_runs++;
 	lcr3(curenv->env_cr3);

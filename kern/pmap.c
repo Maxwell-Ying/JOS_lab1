@@ -209,6 +209,8 @@ i386_vm_init(void)
 	// Your code goes here:
 	n = ROUNDUP(npage* sizeof(struct Page), PGSIZE);
 	boot_map_segment(pgdir, UPAGES, n, PADDR(pages), PTE_P | PTE_U);
+	//cprintf("%x %x\n",n,PADDR(pages));
+	//cprintf("%x %x \n", pgdir, pages);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -216,7 +218,7 @@ i386_vm_init(void)
 	// Permissions:
 	//    - envs itself -- kernel RW, user NONE
 	//    - the image of envs mapped at UENVS  -- kernel R, user R
-	boot_map_segment(pgdir, UENVS, ROUNDUP(UENVS * sizeof(struct Env), PGSIZE), PADDR(envs), PTE_U | PTE_P);
+	boot_map_segment(pgdir, UENVS, ROUNDUP(NENV * sizeof(struct Env), PGSIZE), PADDR(envs), PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the kernel stack (symbol name "bootstack").  The complete VA
@@ -371,11 +373,14 @@ check_boot_pgdir(void)
 
 	// check pages array
 	n = ROUNDUP(npage*sizeof(struct Page), PGSIZE);
+	//cprintf("%x %x %x %x %x\n", pages, pgdir, UPAGES, check_va2pa(pgdir, UPAGES), PADDR(pages));
+	//cprintf("%x %x %x %x %x\n", envs, pgdir, UENVS, check_va2pa(pgdir, UENVS), PADDR(envs));
 	for (i = 0; i < n; i += PGSIZE)
 		assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
 	
 	// check envs array (new test for lab 3)
 	n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
+	//cprintf("%x %x %x %x\n", envs, pgdir, check_va2pa(pgdir, UENVS), PADDR(envs));
 	for (i = 0; i < n; i += PGSIZE)
 		assert(check_va2pa(pgdir, UENVS + i) == PADDR(envs) + i);
 
@@ -629,6 +634,7 @@ boot_map_segment(pde_t *pgdir, uintptr_t la, size_t size, physaddr_t pa, int per
 		pg = pgdir_walk(pgdir, (void* )(la + i), 1);
 		assert(pg != NULL);                           //这个时候的pgdir_walk不应该返回空指针
 		*pg = (pa + i) | perm | PTE_P;
+		//cprintf("%d :%x\n", i/PGSIZE, *pg);
 	}
 	return ;
 }
@@ -724,6 +730,28 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here. 
+	int i;
+	unsigned int begin;
+	begin = (unsigned int)(ROUNDUP(va, PGSIZE));
+	if( ((unsigned int) * pgdir_walk(env->env_pgdir, va, 0)
+					& (perm | PTE_P)) == (perm | PTE_P))
+	{
+		for( ; begin < ROUNDDOWN((unsigned int)va + len, PGSIZE);
+					begin += PGSIZE)
+		{
+			if( ((unsigned int) *pgdir_walk(env->env_pgdir, (void*)begin, 0) 
+							&(perm | PTE_P)) != (perm | PTE_P))
+			{
+				user_mem_check_addr = begin;
+				return -E_FAULT;
+			}
+		}
+	}
+	else
+	{
+		user_mem_check_addr = (unsigned int )va;
+		return -E_FAULT;
+	}
 
 	return 0;
 }
