@@ -22,7 +22,7 @@ sys_cputs(const char *s, size_t len)
 	
 	// LAB 3: Your code here.
 	//cprintf("inside sys_puts\n");
-	user_mem_assert(curenv, s, len, PTE_U);
+	user_mem_assert(curenv, s, len, PTE_U);        //在用户输出字符之前进行检查。
 	//cprintf("outside sys_puts\n");
 
 	// Print the string supplied by the user.
@@ -82,7 +82,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
 	int r = 0;
-	switch(syscallno)
+	switch(syscallno)          //对具体的syscall进行具体函数调用
 	{
 		case SYS_cputs : sys_cputs((char *)a1, a2); break;
 		case SYS_cgetc : r = sys_cgetc(); break;
@@ -91,7 +91,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		default : r = -E_INVAL;
 	}
 
-	return r;
+	return r;          //返回值为负时说明出错
 
 	//panic("syscall not implemented");
 }

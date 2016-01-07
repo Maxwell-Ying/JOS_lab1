@@ -85,7 +85,7 @@ idt_init(void)
 	SETGATE(idt[T_DIVIDE], 0, GD_KT,divide_error , 0);
 	SETGATE(idt[T_DEBUG], 0, GD_KT, debug, 0);
 	SETGATE(idt[T_NMI], 0, GD_KT, nmi, 0);
-	SETGATE(idt[T_BRKPT],0, GD_KT, break_point, 3);
+	SETGATE(idt[T_BRKPT],0, GD_KT, break_point, 3);            //优先级设置为最低
 	SETGATE(idt[T_OFLOW], 0, GD_KT, overflow, 0);
 	SETGATE(idt[T_BOUND], 0, GD_KT, bounds, 0);
 	SETGATE(idt[T_ILLOP], 0, GD_KT, invalid_op, 0);
@@ -103,7 +103,7 @@ idt_init(void)
 	SETGATE(idt[T_SIMDERR], 0, GD_KT, SIMD_float_point_error, 0);
 	SETGATE(idt[T_FPERR], 0, GD_KT, float_point_error, 0);
 
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, system_call, 3);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, system_call, 3);         //优先级设置为最低
 
 	// Setup a TSS so that we get the right stack
 	// when we trap to the kernel.
@@ -155,8 +155,8 @@ static void
 trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
-	// LAB 3: Your code here.
-	if(tf->tf_trapno == T_SYSCALL)
+	// LAB 3: Your code here.          
+	if(tf->tf_trapno == T_SYSCALL)     //根据不同的中断号执行不同的操作  当前阶段只实现了三个。
 	{
 		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,tf->tf_regs.reg_edx,
 										tf->tf_regs.reg_ecx,tf->tf_regs.reg_ebx,
@@ -222,7 +222,7 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 	
 	// LAB 3: Your code here.
-	if (tf->tf_cs == GD_KT)
+	if (tf->tf_cs == GD_KT)            
 		panic("unhandled trap in kernel");
 
 	// We've already handled kernel-mode exceptions, so if we get here,

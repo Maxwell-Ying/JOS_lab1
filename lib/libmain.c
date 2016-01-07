@@ -13,7 +13,7 @@ libmain(int argc, char **argv)
 {
 	// set env to point at our env structure in envs[].
 	// LAB 3: Your code here.
-	env = &envs[ENVX(sys_getenvid())];
+	env = &envs[ENVX(sys_getenvid())];     //将env指向envs中的结构 使用sys_getenvid函数
 
 	// save the name of the program so that panic() can use it
 	if (argc > 0)

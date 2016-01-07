@@ -212,12 +212,12 @@ segment_alloc(struct Env *e, void *va, size_t len)
 	int i, r = 0;
 	struct Page * pg;
 	va = ROUNDDOWN(va, PGSIZE);
-	for(i = 0; i < ROUNDUP(len, PGSIZE) / PGSIZE; i++)
+	for(i = 0; i < ROUNDUP(len, PGSIZE) / PGSIZE; i++)        
 	{
-		r = page_alloc(&pg);
+		r = page_alloc(&pg);                       //申请内存
 		if(r) panic("segment_alloc wrong!\n");
 
-		r = page_insert(e->env_pgdir, pg, va + i * PGSIZE, PTE_U | PTE_W);
+		r = page_insert(e->env_pgdir, pg, va + i * PGSIZE, PTE_U | PTE_W);        //将申请到的页插入
 		if(r) panic("segment_alloc wrong!\n");
 	}
 	return ;
@@ -290,19 +290,19 @@ load_icode(struct Env *e, uint8_t *binary, size_t size)
 
 	ph = (struct Proghdr * )((unsigned int )env_elf + env_elf->e_phoff);
 
-	for(i = 0; i < env_elf->e_phnum; i++)
+	for(i = 0; i < env_elf->e_phnum; i++)          //段的个数
 	{
-		if(ph->p_type == ELF_PROG_LOAD)
+		if(ph->p_type == ELF_PROG_LOAD)           //判断段类型
 		{
-			segment_alloc(e, (void*)ph->p_va, ph->p_memsz);
-			memset((void*)ph->p_va, 0, ph->p_memsz - ph->p_filesz);
+			segment_alloc(e, (void*)ph->p_va, ph->p_memsz);          //段内存申请
+			memset((void*)ph->p_va, 0, ph->p_memsz - ph->p_filesz);  //初始化。置0.
 			//cprintf("segment_alloce success\n");
 
-			memmove((void*)ph->p_va, (void*)((unsigned int )env_elf + ph->p_offset), ph->p_filesz);
+			memmove((void*)ph->p_va, (void*)((unsigned int )env_elf + ph->p_offset), ph->p_filesz);  //copy数据
 		}
 		ph++;
 	}
-	e->env_tf.tf_eip = env_elf->e_entry;
+	e->env_tf.tf_eip = env_elf->e_entry;   //入口地址
 
 	// Now map one page for the program's initial stack
 	// at virtual address USTACKTOP - PGSIZE.
@@ -329,9 +329,9 @@ env_create(uint8_t *binary, size_t size)
 {
 	// LAB 3: Your code here.
 	struct Env * env;
-	if(env_alloc(&env, 0) < 0)
-		panic("env alloc failed !\n");
-	load_icode(env, binary, size);
+	if(env_alloc(&env, 0) < 0)             //申请一个env的内存
+		panic("env alloc failed !\n");    
+	load_icode(env, binary, size);         //加载env的内容。
 	//cprintf("env created ok\n");
 	return;
 }
@@ -445,11 +445,11 @@ env_run(struct Env *e)
 	//	e->env_tf to sensible values.
 	
 	// LAB 3: Your code here.
-	cprintf("env runs\n");
-	curenv = e;
-	curenv->env_runs++;
-	lcr3(curenv->env_cr3);
-	env_pop_tf(&(curenv->env_tf));
+	///cprintf("env runs\n");
+	curenv = e;                //改变当前进程
+	curenv->env_runs++;        //进程运行次数加一
+	lcr3(curenv->env_cr3);     //加载当前进程的cr3
+	env_pop_tf(&(curenv->env_tf));     //当前进程的trapframe
 
      //   panic("env_run not yet implemented");
 }
